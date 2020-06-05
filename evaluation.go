@@ -59,7 +59,7 @@ func parse(isFull bool, index []int) []map[string]int {
 }
 
 func compare(fullCD []map[string]int, sampleCD []map[string]int) float64 {
-	distList := make([]float64, len(fullCD))
+	var distList []float64
 	for id := range fullCD {
 		var normP, normQ []float64
 		pSum, qSum := 0, 0
@@ -73,6 +73,7 @@ func compare(fullCD []map[string]int, sampleCD []map[string]int) float64 {
 		}
 		distList = append(distList, hellingerDistance(normP, normQ))
 	}
+	fmt.Println(distList)
 	s := 0.0
 	for i := range distList {
 		s += distList[i]
@@ -85,5 +86,6 @@ func main() {
 	index := rand.Perm(1999999)[:20000]
 	sort.Ints(index)
 	sampleCD := parse(false, index)
+	fmt.Print(sampleCD)
 	fmt.Print(compare(fullCD, sampleCD))
 }
