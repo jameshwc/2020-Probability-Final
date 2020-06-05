@@ -10,10 +10,17 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	mapset "github.com/deckarep/golang-set"
 )
 
 const (
-	filename = "t1-data.csv"
+	filename   = "t1-data.csv"
+	batchNum   = 100
+	batchSize  = 100
+	initScore  = .08
+	sampleSize = 20000
+	dataSize   = 2000000
 )
 
 func hellingerDistance(normP []float64, normQ []float64) float64 {
@@ -73,19 +80,53 @@ func compare(fullCD []map[string]int, sampleCD []map[string]int) float64 {
 		}
 		distList = append(distList, hellingerDistance(normP, normQ))
 	}
-	fmt.Println(distList)
 	s := 0.0
 	for i := range distList {
 		s += distList[i]
 	}
 	return s / float64(len(distList))
 }
+
+func greedy() {
+	fullCD := parse(true, nil)
+	sampleSet := mapset.NewSet()
+	for sampleSet.Cardinality() < sampleSize {
+		bestScore := initScore
+		var bestBatch mapset.Set
+		for i := 0; i < batchNum; i++ {
+			batch := mapset.NewSet()
+			for batch.Cardinality() < batchSize {
+				r := rand.Intn(dataSize)
+				for sampleSet.Contains(r) {
+					r = rand.Intn(dataSize)
+				}
+				batch.Add(r)
+			}
+			newSampleSet := sampleSet.Union(batch).ToSlice()
+			index := make([]int, len(newSampleSet))
+			for i := 0; i < len(newSampleSet); i++ {
+				index[i] = newSampleSet[i].(int)
+			}
+			sort.Ints(index)
+			sampleCD := parse(false, index)
+			if curScore := compare(fullCD, sampleCD); curScore < bestScore {
+				bestBatch = batch
+				bestScore = curScore
+				fmt.Println(bestScore)
+			}
+		}
+		sampleSet = sampleSet.Union(bestBatch)
+		fmt.Println(sampleSet.Cardinality())
+	}
+	index := make([]int, sampleSize)
+	sampleSlice := sampleSet.ToSlice()
+	for i := 0; i < sampleSize; i++ {
+		index[i] = sampleSlice[i].(int)
+	}
+	sort.Ints(index)
+	fmt.Print(compare(fullCD, parse(false, index)))
+}
 func main() {
 	rand.Seed(time.Now().Unix())
-	fullCD := parse(true, nil)
-	index := rand.Perm(1999999)[:20000]
-	sort.Ints(index)
-	sampleCD := parse(false, index)
-	fmt.Print(sampleCD)
-	fmt.Print(compare(fullCD, sampleCD))
+	greedy()
 }
