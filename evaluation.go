@@ -7,7 +7,6 @@ import (
 	"math"
 	"math/rand"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -45,7 +44,7 @@ func parse() {
 		csvData = append(csvData, dat)
 	}
 }
-func getCD(isFull bool, index []int) []map[string]int {
+func getCD(isFull bool, index mapset.Set) []map[string]int {
 	dat := make([]map[string]int, len(csvData[0])-1)
 	for i := range dat {
 		dat[i] = make(map[string]int)
@@ -60,8 +59,8 @@ func getCD(isFull bool, index []int) []map[string]int {
 			updateDat(csvData[i][1:])
 		}
 	} else {
-		for i := 0; i < len(index); i++ {
-			updateDat(csvData[index[i]][1:])
+		for index.Cardinality() != 0 {
+			updateDat(csvData[index.Pop().(int)][1:])
 		}
 	}
 	return dat
@@ -89,29 +88,21 @@ func compare(fullCD []map[string]int, sampleCD []map[string]int) float64 {
 	return s / float64(len(distList))
 }
 
-func greedy() {
+func greedy(dataSet mapset.Set) {
 	fullCD := getCD(true, nil)
 	sampleSet := mapset.NewSet()
 	bestScore := initScore
 	for sampleSet.Cardinality() < sampleSize {
 		bestBatch := mapset.NewSet()
+		dataSetCopy := dataSet
 		curBestScore := bestScore
 		for i := 0; i < batchNum; i++ {
 			batch := mapset.NewSet()
-			for batch.Cardinality() < batchSize {
-				r := rand.Intn(dataSize)
-				for sampleSet.Contains(r) {
-					r = rand.Intn(dataSize)
-				}
-				batch.Add(r)
+			for j := 0; j < batchSize; j++ {
+				batch.Add(dataSetCopy.Pop())
 			}
-			newSampleSet := sampleSet.Union(batch).ToSlice()
-			index := make([]int, len(newSampleSet))
-			for i := 0; i < len(newSampleSet); i++ {
-				index[i] = newSampleSet[i].(int)
-			}
-			sort.Ints(index)
-			sampleCD := getCD(false, index)
+			newSampleSet := sampleSet.Union(batch)
+			sampleCD := getCD(false, newSampleSet)
 			if curScore := compare(fullCD, sampleCD); curScore < curBestScore {
 				bestBatch = batch
 				curBestScore = curScore
@@ -119,21 +110,20 @@ func greedy() {
 		}
 		if bestBatch.Cardinality() != 0 && bestScore/curBestScore >= 0.01 {
 			sampleSet = sampleSet.Union(bestBatch)
+			dataSet = dataSet.Difference(bestBatch)
 			bestScore = curBestScore
 			fmt.Println(bestScore)
 		}
 		fmt.Println(sampleSet.Cardinality())
 	}
-	index := make([]int, sampleSize)
-	sampleSlice := sampleSet.ToSlice()
-	for i := 0; i < sampleSize; i++ {
-		index[i] = sampleSlice[i].(int)
-	}
-	sort.Ints(index)
-	fmt.Print(compare(fullCD, getCD(false, index)))
+	fmt.Print(compare(fullCD, getCD(false, sampleSet)))
 }
 func main() {
 	rand.Seed(time.Now().Unix())
 	parse()
-	greedy()
+	dataSet := mapset.NewSet()
+	for i := 0; i < dataSize; i++ {
+		dataSet.Add(i)
+	}
+	greedy(dataSet)
 }
