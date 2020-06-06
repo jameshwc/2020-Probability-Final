@@ -23,6 +23,8 @@ const (
 	dataSize   = 2000000
 )
 
+var csvData [][]string
+
 func hellingerDistance(normP []float64, normQ []float64) float64 {
 	s := 0.0
 	for i := range normP {
@@ -30,7 +32,7 @@ func hellingerDistance(normP []float64, normQ []float64) float64 {
 	}
 	return math.Sqrt(1 - s)
 }
-func parse(isFull bool, index []int) []map[string]int {
+func parse() {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatalf("read %s", filename)
@@ -38,28 +40,28 @@ func parse(isFull bool, index []int) []map[string]int {
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
-	scanner.Scan()
-	header := strings.Split(scanner.Text(), ",")
-	dat := make([]map[string]int, len(header)-1)
+	for i := 0; scanner.Scan(); i++ {
+		dat := strings.Split(scanner.Text(), ",")
+		csvData = append(csvData, dat)
+	}
+}
+func getCD(isFull bool, index []int) []map[string]int {
+	dat := make([]map[string]int, len(csvData[0])-1)
 	for i := range dat {
 		dat[i] = make(map[string]int)
 	}
-	updateDat := func(text string) {
-		row := strings.Split(text, ",")[1:]
+	updateDat := func(row []string) {
 		for idx, r := range row {
 			dat[idx][r]++
 		}
 	}
 	if isFull {
-		for scanner.Scan() {
-			updateDat(scanner.Text())
+		for i := range csvData {
+			updateDat(csvData[i][1:])
 		}
 	} else {
-		for i, j := 0, 0; scanner.Scan() && j < len(index); i++ {
-			if i == index[j] {
-				updateDat(scanner.Text())
-				j++
-			}
+		for i := 0; i < len(index); i++ {
+			updateDat(csvData[index[i]][1:])
 		}
 	}
 	return dat
@@ -88,11 +90,12 @@ func compare(fullCD []map[string]int, sampleCD []map[string]int) float64 {
 }
 
 func greedy() {
-	fullCD := parse(true, nil)
+	fullCD := getCD(true, nil)
 	sampleSet := mapset.NewSet()
+	bestScore := initScore
 	for sampleSet.Cardinality() < sampleSize {
-		bestScore := initScore
-		var bestBatch mapset.Set
+		bestBatch := mapset.NewSet()
+		curBestScore := bestScore
 		for i := 0; i < batchNum; i++ {
 			batch := mapset.NewSet()
 			for batch.Cardinality() < batchSize {
@@ -108,14 +111,17 @@ func greedy() {
 				index[i] = newSampleSet[i].(int)
 			}
 			sort.Ints(index)
-			sampleCD := parse(false, index)
-			if curScore := compare(fullCD, sampleCD); curScore < bestScore {
+			sampleCD := getCD(false, index)
+			if curScore := compare(fullCD, sampleCD); curScore < curBestScore {
 				bestBatch = batch
-				bestScore = curScore
-				fmt.Println(bestScore)
+				curBestScore = curScore
 			}
 		}
-		sampleSet = sampleSet.Union(bestBatch)
+		if bestBatch.Cardinality() != 0 && bestScore/curBestScore >= 0.01 {
+			sampleSet = sampleSet.Union(bestBatch)
+			bestScore = curBestScore
+			fmt.Println(bestScore)
+		}
 		fmt.Println(sampleSet.Cardinality())
 	}
 	index := make([]int, sampleSize)
@@ -124,9 +130,10 @@ func greedy() {
 		index[i] = sampleSlice[i].(int)
 	}
 	sort.Ints(index)
-	fmt.Print(compare(fullCD, parse(false, index)))
+	fmt.Print(compare(fullCD, getCD(false, index)))
 }
 func main() {
 	rand.Seed(time.Now().Unix())
+	parse()
 	greedy()
 }
