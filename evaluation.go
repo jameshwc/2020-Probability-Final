@@ -155,7 +155,7 @@ func greedySet(dataSet mapset.Set, num int, batchnum int, ret chan mapset.Set, s
 	for sampleSet.Cardinality() < num {
 		bestBatch := mapset.NewThreadUnsafeSet()
 		curBestScore := bestScore
-		for i := 0; i < 5; i++ {
+		for i := 0; i < 2; i++ {
 			dataSetCopy := dataSet.Clone()
 			batch := mapset.NewThreadUnsafeSet()
 			for j := 0; j < batchnum; j++ {
@@ -174,12 +174,12 @@ func greedySet(dataSet mapset.Set, num int, batchnum int, ret chan mapset.Set, s
 			bestScore = curBestScore
 		}
 	}
-	fmt.Println("in function: ", sampleSet)
+	//fmt.Println("in function: ", sampleSet)
 	ret <- sampleSet
 	<-sem
 }
 func goGreedy(dataSet mapset.Set) {
-	sem := make(chan int, 20)
+	sem := make(chan int, 40)
 	dataCopySet := dataSet.Clone()
 	sampleSet := mapset.NewThreadUnsafeSet()
 	samples := make(chan mapset.Set, 2000)
@@ -191,20 +191,30 @@ func goGreedy(dataSet mapset.Set) {
 			kData.Add(dataCopySet.Pop())
 		}
 		go greedySet(kData, 100, 10, samples, sem)
-		if i%10 == 0 && i != 0 {
-			for j := 0; j < 10; j++ {
-				s := <-samples
-				fmt.Println(s.Cardinality(), s)
-				sampleSet = sampleSet.Union(s)
-				fmt.Println("sampleSet: ", sampleSet.Cardinality(), sampleSet)
+		//if i%10 == 0 && i != 0 {
+			//for j := 0; j < 10; j++ {
+			//	s := <-samples
+			//	fmt.Println(s.Cardinality(), s)
+			//	sampleSet = sampleSet.Union(s)
+			//	fmt.Println("sampleSet: ", sampleSet.Cardinality(), sampleSet)
+			//}
+			//fmt.Println(sampleSet, compare(getCD(true, nil), getCD(false, sampleSet)))
+		//}
+	}
+	for {
+			if len(samples) == 200 {
+				break
 			}
-			fmt.Println(sampleSet, compare(getCD(true, nil), getCD(false, sampleSet)))
-		}
 	}
 	close(samples)
-	for range samples {
-		sampleSet = sampleSet.Union(<-samples)
+	i := 0
+	for r := range samples {
+		fmt.Println(i, sampleSet.Cardinality())
+		i += 1
+		sampleSet = sampleSet.Union(r)
+
 	}
+	fmt.Println("sample size:", sampleSet.Cardinality())
 	fmt.Print(compare(getCD(true, nil), getCD(false, sampleSet)))
 }
 func greedyRemoveTopK(dataSet mapset.Set) {
