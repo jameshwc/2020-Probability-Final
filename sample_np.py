@@ -45,7 +45,7 @@ def get_attr_cnt(data, sample_num= 20000):
     return attr_cnt
 
 def fit(data, attr_cnt, epoch = 5, sample_num = 20000):
-    global sample
+    global sample_ind
 
     def add_sample(ind):
         nonlocal data, attr_cnt
@@ -64,7 +64,7 @@ def fit(data, attr_cnt, epoch = 5, sample_num = 20000):
     feature_ind = np.array([len(np.unique(feature[x])) for x in range(len(feature))])
     feature_ind = np.argsort(feature_ind)
     for e in range(epoch):
-        print(f'running the {e}-th epoch')
+        print(f'running the {e + 1}-th epoch')
         t = time.time()
         for c, i in enumerate(feature_ind):
             print(c, i)
