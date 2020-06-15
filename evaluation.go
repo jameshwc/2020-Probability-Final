@@ -15,9 +15,9 @@ import (
 
 const (
 	filename   = "t1-data.csv"
-	batchNum   = 100
-	batchSize  = 100
-	initScore  = .08
+	batchNum   = 10
+	batchSize  = 10
+	initScore  = .2
 	sampleSize = 20000
 	dataSize   = 2000000
 )
@@ -90,15 +90,75 @@ func compare(fullCD []map[string]int, sampleCD []map[string]int) float64 {
 
 func greedy(dataSet mapset.Set) {
 	fullCD := getCD(true, nil)
-	sampleSet := mapset.NewSet()
+	sampleSet := mapset.NewThreadUnsafeSet()
 	bestScore := initScore
+	batchSizeSlice := []int{100, 100, 100, 100, 1000, // 5000
+		500, 500, 500, 500, 500, 500, // 8000
+		300, 300, 300, 300, 300, 300, 300, // 10100
+		100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+		100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+		100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+		100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+		100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+		100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+		100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+		100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+		100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+		100, 100, 100, 90, //19500
+		10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+		10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+		10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+		10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+		10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+	}
+	batchNumSlice := make(map[int]int)
+	batchNumSlice[1000] = 100
+	batchNumSlice[500] = 500
+	batchNumSlice[300] = 500
+	batchNumSlice[100] = 300
+	batchNumSlice[90] = 400
+	batchNumSlice[10] = 200
+
+	idx := 0
 	for sampleSet.Cardinality() < sampleSize {
-		bestBatch := mapset.NewSet()
-		dataSetCopy := dataSet
+		bestBatch := mapset.NewThreadUnsafeSet()
 		curBestScore := bestScore
-		for i := 0; i < batchNum; i++ {
-			batch := mapset.NewSet()
-			for j := 0; j < batchSize; j++ {
+		for i := 0; i < batchNumSlice[batchSizeSlice[idx]]; i++ {
+			dataSetCopy := dataSet.Clone()
+			batch := mapset.NewThreadUnsafeSet()
+			for j := 0; j < batchSizeSlice[idx]; j++ {
+				batch.Add(dataSetCopy.Pop())
+			}
+			newSampleSet := sampleSet.Union(batch)
+			sampleCD := getCD(false, newSampleSet)
+			if curScore := compare(fullCD, sampleCD); curScore < curBestScore {
+				bestBatch = batch
+				curBestScore = curScore
+			}
+		}
+		if bestBatch.Cardinality() != 0 {
+			sampleSet = sampleSet.Union(bestBatch)
+			dataSet = dataSet.Difference(bestBatch)
+			bestScore = curBestScore
+			fmt.Println(bestScore)
+			idx++
+		}
+		fmt.Println(sampleSet.Cardinality())
+	}
+	fmt.Print(compare(fullCD, getCD(false, sampleSet)))
+	fmt.Println(sampleSet)
+}
+func greedySet(dataSet mapset.Set, num int, batchnum int, ret chan mapset.Set, sem chan int) {
+	fullCD := getCD(true, nil)
+	sampleSet := mapset.NewThreadUnsafeSet()
+	bestScore := initScore
+	for sampleSet.Cardinality() < num {
+		bestBatch := mapset.NewThreadUnsafeSet()
+		curBestScore := bestScore
+		for i := 0; i < 2; i++ {
+			dataSetCopy := dataSet.Clone()
+			batch := mapset.NewThreadUnsafeSet()
+			for j := 0; j < batchnum; j++ {
 				batch.Add(dataSetCopy.Pop())
 			}
 			newSampleSet := sampleSet.Union(batch)
@@ -112,18 +172,80 @@ func greedy(dataSet mapset.Set) {
 			sampleSet = sampleSet.Union(bestBatch)
 			dataSet = dataSet.Difference(bestBatch)
 			bestScore = curBestScore
-			fmt.Println(bestScore)
 		}
-		fmt.Println(sampleSet.Cardinality())
 	}
-	fmt.Print(compare(fullCD, getCD(false, sampleSet)))
+	//fmt.Println("in function: ", sampleSet)
+	ret <- sampleSet
+	<-sem
+}
+func goGreedy(dataSet mapset.Set) {
+	sem := make(chan int, 40)
+	dataCopySet := dataSet.Clone()
+	sampleSet := mapset.NewThreadUnsafeSet()
+	samples := make(chan mapset.Set, 2000)
+	for i := 0; i < 200; i++ {
+		kData := mapset.NewThreadUnsafeSet()
+		fmt.Println(i)
+		sem <- 1
+		for j := 0; j < 10000; j++ {
+			kData.Add(dataCopySet.Pop())
+		}
+		go greedySet(kData, 100, 10, samples, sem)
+		//if i%10 == 0 && i != 0 {
+			//for j := 0; j < 10; j++ {
+			//	s := <-samples
+			//	fmt.Println(s.Cardinality(), s)
+			//	sampleSet = sampleSet.Union(s)
+			//	fmt.Println("sampleSet: ", sampleSet.Cardinality(), sampleSet)
+			//}
+			//fmt.Println(sampleSet, compare(getCD(true, nil), getCD(false, sampleSet)))
+		//}
+	}
+	for {
+			if len(samples) == 200 {
+				break
+			}
+	}
+	close(samples)
+	i := 0
+	for r := range samples {
+		fmt.Println(i, sampleSet.Cardinality())
+		i += 1
+		sampleSet = sampleSet.Union(r)
+
+	}
+	fmt.Println("sample size:", sampleSet.Cardinality())
+	fmt.Print(compare(getCD(true, nil), getCD(false, sampleSet)))
+}
+func greedyRemoveTopK(dataSet mapset.Set) {
+	fullCD := getCD(true, nil)
+	for dataSet.Cardinality() > sampleSize {
+		curWorstScore := 0.0
+		worstBatch := mapset.NewThreadUnsafeSet()
+		for i := 0; i < batchNum; i++ {
+			dataSetCopy := dataSet.Clone()
+			batch := mapset.NewThreadUnsafeSet()
+			for j := 0; j < 1000; j++ {
+				batch.Add(dataSetCopy.Pop())
+			}
+			sampleCD := getCD(false, batch.Clone())
+			if curScore := compare(fullCD, sampleCD); curScore > curWorstScore {
+				worstBatch = batch
+				curWorstScore = curScore
+			}
+		}
+		dataSet = dataSet.Difference(worstBatch)
+		fmt.Println(compare(fullCD, getCD(false, dataSet.Clone())))
+	}
 }
 func main() {
 	rand.Seed(time.Now().Unix())
 	parse()
-	dataSet := mapset.NewSet()
+	dataSet := mapset.NewThreadUnsafeSet()
 	for i := 0; i < dataSize; i++ {
 		dataSet.Add(i)
 	}
-	greedy(dataSet)
+	// greedy(dataSet)
+	goGreedy(dataSet)
+	// greedyRemoveTopK(dataSet)
 }
