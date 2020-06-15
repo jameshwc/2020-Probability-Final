@@ -103,7 +103,7 @@ def update_sample(x_ind, x, pos):
             if x[rule[0]] == rule[1] and neg_needed > 0:
                 neg_needed -= 1
 
-    if x[rule[0]] == rule[1]:
+    if R and R[-1] != x_ind and x[rule[0]] == rule[1]:
         if pos_needed > 0 and pos:
             R.append(x_ind)
             update_cnt(sample_cnt, sample_cnt_pos, x, pos, 1)
@@ -131,9 +131,9 @@ def main():
     global rank_rules
     rank_rules = [ind_to_rule[rule_id] for rule_id in gt_rank]
 
-    for rule_id in gt_rank[:48]:
-        rule = ind_to_rule[rule_id]
-        print(f'{attrs[rule[0]]} = {rule[1]}')
+    #for rule_id in gt_rank[:48]:
+    #    rule = ind_to_rule[rule_id]
+    #    print(f'{attrs[rule[0]]} = {rule[1]}')
     
     for i in tqdm(range(delimiter, data.shape[0])):
         update_sample(i, data[i], labels[i])
@@ -148,6 +148,7 @@ def main():
 if __name__ == '__main__':
     random.seed(777777)
     np.random.seed(777777)
+    #preprocess()
     with open('/tmp2/b07902075/t2_evaluation.pickle', 'rb') as f:
         t2 = pickle.load(f)
     #print(t2.rule_whole_data)
