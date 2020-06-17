@@ -1,4 +1,4 @@
-from evaluation_t2 import t2_evaluation
+from evaluation_t2_test import t2_evaluation
 
 import pickle
 import pandas as pd
@@ -8,10 +8,10 @@ from tqdm import tqdm
 import random
 import heapq
 
-DATA_PATH = './t2_data_v2.csv'
+DATA_PATH = './t2-test-data.csv'
 LABEL_ATTR = 'label'
 POSITIVE = 1
-MAX_RULE = 391
+MAX_RULE = 1017
 FULL_DATA_SIZE = 2458285
 SAMPLE_SIZE = 2000
 GT_RULE_NUM = 48
@@ -29,11 +29,11 @@ def preprocess():
         'label_index': label_ind,
         'arr': arr
     }
-    with open('t2_data.pickle', 'wb') as f:
+    with open('t2_test_data.pickle', 'wb') as f:
         pickle.dump(obj, f)
 
 def load_data():
-    with open('t2_data.pickle', 'rb') as f:
+    with open('t2_test_data.pickle', 'rb') as f:
         obj = pickle.load(f)
     attrs = obj['attrs']
     label_index = obj['label_index']
@@ -79,11 +79,14 @@ def update_stat(x_ind, x, pos):
     # Update the count of each rule
     update_cnt(cnt, cnt_pos, x, pos, 1)
 
-POS = 15
+POS = 10
 current_rank = 0
 pos_needed = POS
 neg_needed = 0
 rank_rules = None
+sample_cnt = np.zeros(MAX_RULE)
+sample_cnt_pos = np.zeros(MAX_RULE)
+max_maintain_rank = None
 def update_sample(x_ind, x, pos):
     global current_rank, pos_needed, neg_needed
     rule = rank_rules[current_rank]
@@ -92,12 +95,24 @@ def update_sample(x_ind, x, pos):
     #    if x[r[0]] == r[1]:
     #        return
 
-    if x[rule[0]] == rule[1]:
+    sample_pos_ratio, sample_rank = get_rank(sample_cnt, sample_cnt_pos)
+    for i in range(max_maintain_rank):
+        r = ind_to_rule[sample_rank[i]]
+        if sample_rank[i] not in gt_rank[:max_maintain_rank] and x[r[0]] == r[1] and not pos:
+            R.append(x_ind)
+            update_cnt(sample_cnt, sample_cnt_pos, x, pos, 1)
+            if x[rule[0]] == rule[1] and neg_needed > 0:
+                neg_needed -= 1
+            break
+
+    if R and R[-1] != x_ind and x[rule[0]] == rule[1]:
         if pos_needed > 0 and pos:
             R.append(x_ind)
+            update_cnt(sample_cnt, sample_cnt_pos, x, pos, 1)
             pos_needed -= 1
         elif neg_needed > 0 and not pos:
             R.append(x_ind)
+            update_cnt(sample_cnt, sample_cnt_pos, x, pos, 1)
             neg_needed -= 1
 
     if pos_needed == 0 and neg_needed == 0:
@@ -107,7 +122,7 @@ def update_sample(x_ind, x, pos):
 
 def main():
     attrs, data, labels = load_data()
-    stat_ratio = 0.1
+    stat_ratio = 0.5
     delimiter = int(data.shape[0] * stat_ratio)
     for i in tqdm(range(0, delimiter)):
         update_stat(i, data[i], labels[i])
@@ -118,9 +133,12 @@ def main():
     global rank_rules
     rank_rules = [ind_to_rule[rule_id] for rule_id in gt_rank]
 
-    for rule_id in gt_rank[:48]:
-        rule = ind_to_rule[rule_id]
-        print(f'{attrs[rule[0]]} = {rule[1]}')
+    #for rule_id in gt_rank[:48]:
+    #    rule = ind_to_rule[rule_id]
+    #    print(f'{attrs[rule[0]]} = {rule[1]}')
+
+    global max_maintain_rank
+    max_maintain_rank = 1 if len(possible_rules) > 400 else 5
     
     for i in tqdm(range(delimiter, data.shape[0])):
         update_sample(i, data[i], labels[i])
@@ -135,7 +153,8 @@ def main():
 if __name__ == '__main__':
     random.seed(777777)
     np.random.seed(777777)
-    with open('/tmp2/b07902075/t2_evaluation.pickle', 'rb') as f:
+    #preprocess()
+    with open('/tmp2/b07902075/t2_evaluation_test.pickle', 'rb') as f:
         t2 = pickle.load(f)
     #print(t2.rule_whole_data)
     main()
