@@ -5,6 +5,7 @@ import threading
 import queue
 from tqdm import tqdm
 from time import time
+import argparse
 
 from evaluation_t1 import t1_evaluation
 
@@ -79,7 +80,7 @@ def random_indices(sample_size, data_size):
     random.shuffle(lst)
     return lst[:sample_size]
 
-def greedy_method(sample: set, init_set_size=10, batch_size=100, num_batches=100, full_data_size=FULL_SIZE, sample_size=SAMPLE_SIZE):
+def greedy_method(sample: set, init_set_size=10, batch_size=100, num_batches=100, counter_max=5, full_data_size=FULL_SIZE, sample_size=SAMPLE_SIZE):
     # R = set(random_indices(init_set_size, full_data_size))
     R = sample
     S = set(list(range(full_data_size))).difference(R)
@@ -88,27 +89,9 @@ def greedy_method(sample: set, init_set_size=10, batch_size=100, num_batches=100
     while True:
         try:
             score = 0.0
-            # remove_num = None
-            # for _, val in enumerate(tqdm(R)):
-            #     cur_score = evaluator.try_([val], -1)
-            #     if cur_score > score:
-            #         score = cur_score
-            #         remove_num = val
             origin_score = evaluator.score()
             print(origin_score)
-            # R.remove(remove_num)
-            # print(score)
-            # pick_counter = 0
             while len(R) < sample_size:
-                if len(R) < 500:
-                    batch_size = 5
-                    counter_max = 25
-                elif len(R) < 1500:
-                    batch_size = 1
-                    counter_max = 1
-                else:
-                    batch_size = 1
-                    counter_max = 1
                 best_score = []
                 best_batch = []
                 k = min(sample_size - len(R), batch_size)
@@ -140,17 +123,28 @@ def greedy_method(sample: set, init_set_size=10, batch_size=100, num_batches=100
             break
     return list(R)
 
+def parse():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-b", "--batch", default=5)
+    parser.add_argument("-i", "--init_set_size", default=1)
+    parser.add_argument("-n", "--num_batches", default=100)
+    parser.add_argument("-c", "--counter_max", default=5)
+    args = parser.parse_args()
+    return args
+
 if __name__ == '__main__':
     random.seed(SEED)
     np.random.seed(SEED)
+    args = parse()
+    # print(args.num_batches)
     s = set()
     # with open('result.txt', 'r') as file:
     #     for r in file:
     #         s.add(int(r))
-    with open('R.pickle.22', 'rb') as file:
-        s = set(pickle.load(file))
+    # with open('R.pickle.22', 'rb') as file:
+        # s = set(pickle.load(file))
 
-    R = greedy_method(s, init_set_size=1, batch_size=1, num_batches=3000)
-    print(list(R))
+    R = greedy_method(s, init_set_size=args.init_set_size, batch_size=args.batch, num_batches=args.num_batches, counter_max=args.counter_max)
+    # print(list(R))
     with open('R.pickle.22', 'wb') as f:
         pickle.dump(R, f)
