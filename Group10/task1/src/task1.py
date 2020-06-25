@@ -144,6 +144,6 @@ if __name__ == '__main__':
         # s = set(pickle.load(file))
 
     R = greedy_method(s, init_set_size=int(args.init_set_size), batch_size=int(args.batch), counter_max=int(args.counter_max))
-    # print(list(R))
-    with open('R.pickle.22', 'wb') as f:
-        pickle.dump(R, f)
+    print(list(R))
+    #with open('R.pickle.22', 'wb') as f:
+    #    pickle.dump(R, f)
