@@ -1,3 +1,6 @@
+language: python3
+packages: pandas, numpy, tqdm
+
 Before you run ./run.sh, please place both "t2_data_v2.csv" and "t2-test-data.csv" in the current working directory.
 If you need to change the paths, please change in "run.sh".
 Our code does not import the evaluation function. Instead, it prints the index list to the standard output.
