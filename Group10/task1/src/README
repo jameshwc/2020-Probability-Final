@@ -1,0 +1,7 @@
+To execute run.sh, please place the evaluation code and the csv data under the same directory.
+The default will run t1-data.csv. If there is need to run another data, please change the file path in task1.py and place the file under the same directory.
+
+The second program aaa.py will run the algorithm described in the report. To execute the program, please specify the file path as argument. For example, 
+```
+python3 aaa.py t1-data.csv
+```

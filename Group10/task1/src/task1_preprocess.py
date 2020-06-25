@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import argparser
+import argparse
 from tqdm import tqdm
 
 from evaluation_t1 import get_count_dict
