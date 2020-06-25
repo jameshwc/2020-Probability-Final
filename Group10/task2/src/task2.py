@@ -1,5 +1,3 @@
-from evaluation_t2_test import t2_evaluation
-
 import pickle
 import pandas as pd
 import numpy as np
