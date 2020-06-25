@@ -1,4 +1,4 @@
-To execute run.sh, please place "evaluation_t1.py" and "t1-test-data.csv" under the same directory. It will run our algorithm on t1-test-data.csv for about 10 hours.
+To execute run.sh, please place "evaluation_t1.py" and "t1-test-data.csv" under the same directory. It will run our algorithm on t1-test-data.csv for about 10 hours to obtain the desired result.
 It will not terminate by itself, but you can stop it by pressing ctrl + c and it will print the current index list. 
 
 The second program aaa.py will run the algorithm described in the report. To execute the program, please specify the file path as argument. For example, 
